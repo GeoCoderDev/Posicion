@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geolocalización en Tiempo Real</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f8ff;
+            color: #333;
+        }
+        
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+            text-align: center;
+            max-width: 600px;
+            width: 90%;
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        
+        .coordinates {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #ecf0f1;
+            border-radius: 8px;
+            font-size: 18px;
+        }
+        
+        .coordinate-value {
+            font-weight: bold;
+            color: #3498db;
+            font-size: 24px;
+            margin: 5px 0;
+        }
+        
+        .error-message {
+            color: #e74c3c;
+            padding: 15px;
+            border: 1px solid #e74c3c;
+            border-radius: 8px;
+            background-color: #fadbd8;
+            margin-top: 20px;
+        }
+        
+        .success-message {
+            color: #27ae60;
+            padding: 15px;
+            border: 1px solid #27ae60;
+            border-radius: 8px;
+            background-color: #d4efdf;
+            margin-top: 20px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .update-time {
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Mi Ubicación Actual</h1>
+        
+        <div id="coordinates" class="coordinates hidden">
+            <div>
+                <p>Latitud:</p>
+                <p id="latitude" class="coordinate-value">--</p>
+            </div>
+            <div>
+                <p>Longitud:</p>
+                <p id="longitude" class="coordinate-value">--</p>
+            </div>
+            <p id="update-time" class="update-time"></p>
+        </div>
+        
+        <div id="loading-message" class="success-message">
+            Obteniendo ubicación...
+        </div>
+        
+        <div id="permission-error" class="error-message hidden">
+            No se han otorgado permisos para acceder a la ubicación. 
+            Por favor, permite el acceso a tu ubicación en la configuración del navegador.
+        </div>
+        
+        <div id="availability-error" class="error-message hidden">
+            La geolocalización no está disponible en este dispositivo o navegador.
+        </div>
+        
+        <div id="generic-error" class="error-message hidden">
+            Ha ocurrido un error al obtener la ubicación.
+        </div>
+    </div>
+
+    <script>
+        // Elementos del DOM
+        const coordinatesElement = document.getElementById('coordinates');
+        const latitudeElement = document.getElementById('latitude');
+        const longitudeElement = document.getElementById('longitude');
+        const updateTimeElement = document.getElementById('update-time');
+        const loadingMessage = document.getElementById('loading-message');
+        const permissionError = document.getElementById('permission-error');
+        const availabilityError = document.getElementById('availability-error');
+        const genericError = document.getElementById('generic-error');
+        
+        // Variable para almacenar el ID del intervalo
+        let watchId = null;
+        
+        // Función para mostrar mensajes de error
+        function showError(errorType) {
+            // Ocultar todos los mensajes primero
+            loadingMessage.classList.add('hidden');
+            coordinatesElement.classList.add('hidden');
+            permissionError.classList.add('hidden');
+            availabilityError.classList.add('hidden');
+            genericError.classList.add('hidden');
+            
+            // Mostrar el mensaje de error correspondiente
+            switch(errorType) {
+                case 'permission':
+                    permissionError.classList.remove('hidden');
+                    break;
+                case 'availability':
+                    availabilityError.classList.remove('hidden');
+                    break;
+                default:
+                    genericError.classList.remove('hidden');
+            }
+        }
+        
+        // Función para actualizar las coordenadas en la página
+        function updateCoordinates(position) {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+            
+            latitudeElement.textContent = latitude.toFixed(6);
+            longitudeElement.textContent = longitude.toFixed(6);
+            
+            const now = new Date();
+            updateTimeElement.textContent = `Última actualización: ${now.toLocaleTimeString()}`;
+            
+            // Mostrar coordenadas y ocultar mensajes de error/carga
+            loadingMessage.classList.add('hidden');
+            coordinatesElement.classList.remove('hidden');
+            permissionError.classList.add('hidden');
+            availabilityError.classList.add('hidden');
+            genericError.classList.add('hidden');
+        }
+        
+        // Función para manejar errores de geolocalización
+        function handleLocationError(error) {
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    showError('permission');
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    showError('availability');
+                    break;
+                case error.TIMEOUT:
+                case error.UNKNOWN_ERROR:
+                default:
+                    showError('generic');
+            }
+        }
+        
+        // Función para iniciar la geolocalización
+        function startGeolocation() {
+            // Verificar si la geolocalización está disponible
+            if ('geolocation' in navigator) {
+                const options = {
+                    enableHighAccuracy: true,
+                    timeout: 5000,
+                    maximumAge: 0
+                };
+                
+                // Mostrar mensaje de carga
+                loadingMessage.classList.remove('hidden');
+                
+                // Iniciar seguimiento de ubicación
+                watchId = navigator.geolocation.watchPosition(
+                    updateCoordinates,
+                    handleLocationError,
+                    options
+                );
+            } else {
+                // Geolocalización no disponible
+                showError('availability');
+            }
+        }
+        
+        // Iniciar geolocalización cuando la página cargue
+        window.addEventListener('load', startGeolocation);
+    </script>
+</body>
+</html>
